@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generar Factura</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+
+<body>
+    <h1>Generar Factura en PDF</h1>
+    <form id="invoiceForm">
+        <h3>Datos del Cliente</h3>
+        <label for="clientName">Nombre:</label>
+        <input type="text" id="clientName" name="clientName" required><br><br>
+
+        <h3>Artículos</h3>
+        <div id="items">
+            <div class="item">
+                <label for="itemName">Nombre del Artículo:</label>
+                <input type="text" class="itemName" required><br>
+                <label for="unitPrice">Precio Unitario:</label>
+                <input type="number" class="unitPrice" step="0.01" required><br>
+                <label for="quantity">Cantidad:</label>
+                <input type="number" class="quantity" required><br><br>
+            </div>
+        </div>
+        <button type="button" onclick="addItem()">Agregar Artículo</button><br><br>
+
+        <button type="button" onclick="generateInvoice()">Generar PDF</button>
+    </form>
+
+    <script>
+        function addItem() {
+            const itemsDiv = document.getElementById('items');
+            const itemHTML = `
+                <div class="item">
+                    <label for="itemName">Nombre del Artículo:</label>
+                    <input type="text" class="itemName" required><br>
+                    <label for="unitPrice">Precio Unitario:</label>
+                    <input type="number" class="unitPrice" step="0.01" required><br>
+                    <label for="quantity">Cantidad:</label>
+                    <input type="number" class="quantity" required><br><br>
+                </div>
+            `;
+            itemsDiv.insertAdjacentHTML('beforeend', itemHTML);
+        }
+
+        function calculateTotals(unitPrice, quantity) {
+            const totalPrice = unitPrice * quantity;
+            const igv = totalPrice * 0.18; // 18% de IGV
+            const saleValue = totalPrice - igv; // Precio sin IGV
+            const totalSalePrice = saleValue + igv; // Precio con IGV
+
+            return { totalPrice, igv, saleValue, totalSalePrice };
+        }
+
+        function generateInvoice() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+
+            const clientName = document.getElementById('clientName').value;
+
+            // Información de la empresa
+            doc.setFontSize(12);
+            doc.text('El nombre de su empresa', 10, 10);
+            doc.text('El lema de su empresa', 10, 15);
+            doc.text('Dirección: Calle Falsa 123', 10, 20);
+            doc.text('Ciudad, Estado, Código Postal', 10, 25);
+            doc.text('Teléfono: +1 234 567 890', 10, 30);
+
+            // Fecha y número de factura
+            doc.text('FACTURA', 160, 10);
+            doc.text(`Fecha: ${new Date().toLocaleDateString()}`, 160, 20);
+            doc.text('Factura #100', 160, 30);
+
+            // Detalles del cliente
+            doc.text('Facturar a:', 10, 40);
+            doc.text(`Nombre: ${clientName}`, 10, 45);
+
+            // Encabezado de la tabla
+            doc.setFontSize(10);
+            doc.text('DESCRIPCIÓN', 10, 60);
+            doc.text('IMPORTE', 160, 60);
+
+            const items = document.querySelectorAll('.item');
+            let yOffset = 70;
+            let grandTotal = 0;
+            let totalIGV = 0;
+            let totalSaleValue = 0;
+
+            items.forEach((item, index) => {
+                const itemName = item.querySelector('.itemName').value;
+                const unitPrice = parseFloat(item.querySelector('.unitPrice').value) || 0;
+                const quantity = parseInt(item.querySelector('.quantity').value) || 0;
+
+                const { totalPrice, igv, saleValue, totalSalePrice } = calculateTotals(unitPrice, quantity);
+                grandTotal += totalSalePrice;
+                totalIGV += igv;
+                totalSaleValue += saleValue;
+
+                // Descripción del artículo
+                doc.text(`${itemName}`, 10, yOffset);
+                // Importe del artículo
+                doc.text(`S/ ${totalPrice.toFixed(2)}`, 160, yOffset);
+
+                yOffset += 10;
+            });
+
+            // Subtotal
+            yOffset += 10;
+            doc.text(`Valor de Venta: S/ ${totalSaleValue.toFixed(2)}`, 10, yOffset);
+            doc.text(`IGV (18%): S/ ${totalIGV.toFixed(2)}`, 10, yOffset + 10);
+
+            // Total general
+            doc.text(`TOTAL: S/ ${grandTotal.toFixed(2)}`, 160, yOffset + 20);
+
+            // Nota de agradecimiento
+            doc.text('GRACIAS POR SU CONFIANZA', 10, yOffset + 40);
+
+            // Descargar el PDF
+            doc.save('factura.pdf');
+        }
+    </script>
+</body>
+
+</html>
